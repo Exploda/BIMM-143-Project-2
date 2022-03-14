@@ -1,0 +1,245 @@
+\huge{Introduction}
+
+Scientific Question: How do different Influenza A virus (IAV) hemagglutinin (HA) protein strains evolve and differ over time in terms of their sequence and structure? Is there an mutation pattern between IAV strains ranging from 1934 to 2013?
+
+Influenza A virus hemagglutinin protein (HA) is an important protein that mediates receptor binding and membrane fusion of the virus into the host cells. There are currently 18 antigenically distinct hemagglutinin subtypes and 9 neruaminidase subtypes identified (H1N1, H2N3, ETC.) (Byrd-Leotis et al. 2015). These different subtypes affect different species depending on the HA-mediated attachment to the host cells. HA is a homotrimer and its globular region contains a receptor binding site specific for sialic acid, which main purpose is to terminate host glycans (Kosik and Yewdell 2019). The globular domain is further divided into two sub domains, the highly variable head domain and the conserved stem (stalk) domain (Aartse et al. 2021).Due to the high plasticity of the HA domain, it is a region that undergoes constant antigenic drift, causing ineffectiveness of vaccines to cope with the evolving viruses (Kirkpatrick et al. 2018). 
+
+The data was sourced from NCBI gene database and uniprotkb. 5 strains of IAV HA proteins were selected: Puerto Rico 1934 H1N1, Guangdong 1996 H5N1, Hong Kong 1999 H9N2, California 2009 H1N1, and Shanghai 2013 H7N9. The pdb files that were selected are 6WCR, 4MHI, 1JSD, 3LZG, and 4LN3. The PDB files were downloaded through Rstudio from RCSB.org. 
+
+Hypothesis: If the IAV HA mutations of different strains occur predominately at the head domain and it's 3x faster than the stalk domain, then the multiple sequence alignment will indicate significant genomic differences (insertions/deletions) in the head domain and a homology modeling analysis will portray a significant structural differences between each strain of IAV.
+
+We performed a multiple sequence alignment to compare the genomic differences in the head domain of the protein, homology modeling analysis to portray structural differences between each strains, phylogenetic clustering to cluster the genetic distances between each strains, and k-means clustering to split the strains into two families to determine their similarities. K-means clustering and phylogenetic clustering were performed to answer the question regarding protein strains differences and how well they evolve. 
+
+\huge{Packages}
+
+1. BiocManager
+2. MSA
+3. Seqinr
+4. bio3D
+5. muscle
+6. Biostrings
+7. adegenet
+9. ape
+10. ggtree
+11. DECIPHER
+12. viridis
+13. ggplot2
+14. tidyverse
+15. factoextra
+
+\huge{Performing Bioinformatics Analysis}
+
+The first chunk reading a fasta file containing the 6 strains of IAV HA that was selected and performing a multiple sequence alignment to compare the genomic differences in each of the strains. 
+```{r}
+#if (!require("BiocManager", quietly = TRUE))
+   # install.packages("BiocManager")
+#BiocManager::install("msa")
+#install.packages("seqinr")
+
+library(seqinr)
+
+#this line is to locate where the file texshade.sty is 
+system.file("tex", "texshade.sty", package="msa")
+
+#IAV_HA is a varaible defined here that uses the function read.fasta from the library seqinr to read the fasta file IAV_HA.fasta 
+IAV_HA <- read.fasta("IAV_HA.fasta")
+
+library(Biostrings)
+library(msa)
+
+#HA_Strings_proteins is a variable that was defined using readDNAstringset from the package biostrings to read the fasta file as a DNA string set
+HA_strings_proteins <- readDNAStringSet("IAV_HA.fasta")
+
+#HA_MSA is the multiple sequence alignment that was performed on the DNA string set using clustalW
+HA_MSA <- msa(HA_strings_proteins)
+
+#this function prints out the HA_MSA variable that is a multiple sequence alignment, showing the complete alignment of the protein genomic sequence 
+print(HA_MSA, show="complete")
+#NC_002017 = Puerto Rico/8/1934(H1N1
+#NC_007362 = goose/Guangdong/1/1996(H5N1)
+#NC_004908 = Hong Kong/1073/99(H9N2)
+#NC_026433 = California/07/2009(H1N1)
+#NC_026425 = Shanghai/02/2013(H7N9)
+```
+\newpage
+The multiple sequence alignment show many insertions/deletions (indels) between aln 1-54 and 55-108. The alignment location roughly corresponds to the head domain of the HA protein. Shanghai H7N9 and Hong Kong H9N2 show 3 amino acid insertion residue 47-50 of G, C, and A and the Shanghai H7N9 show 2 nucleotides indels between alignment 55-108. Guangdong H5N1 show 2 nucleotides deletion upstream of the site of insertion. Additionally, key indels was observed in alignment 379-486 between Shanghai H7N9, Hongkong H9N2, and Guangdong H5N1.Deletions of up to 7 nucleotides was observe in this region with shanghai H7N9 to have many indels located throughout the genomes. 
+
+
+This chunk is for creating the phylogenetic clustering
+```{r}
+#this chunk is for phylogenetic clustering
+#install.packages("ape")
+#BiocManager::install("ggtree")
+#install.packages("ggplot2")
+#install.packages("BiocManager")
+#BiocManager::install("DECIPHER")
+#install.packages("adegenet")
+library(adegenet)
+library(ape)
+library(ggtree)
+library(DECIPHER)
+library(viridis)
+library(ggplot2)
+
+#this code is to orient the nucleotide sequence in the same orientation
+HA_strings_proteins_orient <- OrientNucleotides(HA_strings_proteins)
+
+#this function created a variable that aligned the sequence after orientation
+HA_proteins_aligned <- AlignSeqs(HA_strings_proteins_orient)
+
+#BrowseSeqs(HA_proteins_aligned, highlight=0)
+
+#this function wrote the stringset that I aligned and saved it into a fasta file 
+writeXStringSet(HA_proteins_aligned,
+                file="IAV_HA_aligned.fasta")
+
+#this function reads in the aligned data file
+dna <- read.alignment("IAV_HA_aligned.fasta", format = "fasta")
+
+#this created a distance matrix for the alignment
+D <- dist.alignment(dna, matrix = "similarity")
+
+#this function for distance matrix to turn it into a phylo object
+tre <- nj(D)
+class(tre)
+
+tre <- ladderize(tre)
+
+#the Tree was plotting using ggtree function, and tiplab was to add a tip label layer adjusting horiztonally, aligned the sequence to true, and limits the x variable.  
+ggtree(tre) +
+  geom_tiplab(hjust = -0.3, size=4, align = TRUE)+
+  xlim(0,0.5)
+
+#NC_002017 = Puerto Rico/8/1934(H1N1
+#NC_007362 = goose/Guangdong/1/1996(H5N1)
+#NC_004908 = Hong Kong/1073/99(H9N2)
+#NC_026433 = California/07/2009(H1N1)
+#NC_026425 = Shanghai/02/2013(H7N9)
+
+```
+
+![Figure 1: Structural comparison between 6WCR and 4MHI. These two structures are shown to overlap in most alpha helix and beta sheets but there are key differences on the beta sheets of the head domain. Green = 6WCR, blue = 4MHI.](6WCR_VS_4MHI.PNG)
+
+![Figure 2: Structural comparison between 6WCR and 1JSD.These two structures are shown to overlap in most alpha helix and beta sheets but key differences are noted with an extended alpha helix at the bottom and different beta sheets in the head domain. Green = 6WCR pink = 1JSD.](6WCR_VS_1JSD.PNG)
+
+![Figure 3: Structural comparison between 4MHI and 1JSD.The two structures are shown to overlap in most beta sheets and alpha helix. Key differences are observed in the head domain of difference length of beta sheets. Blue = 4MHI, pink = 1JSD.](4MHI_VS_1JSD.PNG)
+
+![Figure 4: Structural comparison between 3LZG and 4LN3. The two structures are shown to have zero overlaps between any alpha helix and beta sheets. light pink = 4LN3, yellow = 3LZG.](3LZG_VS_4LN3.PNG)
+
+![Figure 5: Structural comparison between 4MHI and 3LZG. Surprisingly, these two structures are shown to have a bit of overlaps between it's alpha helix and some beta sheets. Key differences are observed in the head domain, where many nonoverlapping beta sheets are shown. Blue = 4MHI, yellow = 3LZG ](4MHI_VS_3LZG.PNG)
+
+
+This chunk was to create the k-mean clustering for the data set
+```{r}
+library(tidyverse)
+
+#DNA sequence was extracted and converted to numbers and fitted into a dataframe
+wow <- HA_MSA@unmasked
+df <- as.data.frame(wow)
+
+#reexpressed the nucleotide sequence in terms of numbers so it can be differential by kmeans first line is splitting four nucleotides into 0.25 each for chance of appearance 
+encoding <- rbind(c(0.25,0.25,0.25,0.25),
+                  c(1,0,0,0),
+                  c(0,1,0,0),
+                  c(0,0,1,0),
+                  c(0,0,0,1),
+                  c(0.5,0,0,0.5)) #R is either A or G
+
+# "-" it can be an equal probability to the four letters
+letters <- c('-', 'A', 'C', 'T', 'G', 'R')
+
+#to create a numerical data frame
+all_encodings <- data.frame()
+
+#The string was pslit into individual characters, and their length/table is printed
+for(j in 1:5){
+   first_sequence <- unlist(str_split(df[j,1], ''))
+   print(length(first_sequence))
+   print(table(first_sequence))
+   
+ #vector that stores nucleotide into a number format  
+   number_encoding <- c()
+
+# for every letter in the sequence, we find the numerical representation and append it to the vector(number_encoding)
+   for(i in first_sequence){
+      temp_index <- which(letters == i)
+      temp_encoding <- encoding[temp_index,]
+      number_encoding <- append(number_encoding, temp_encoding)
+   }
+   print(length(number_encoding))
+  #We merge all 5 encoding proteins into one single dataframe  
+   if(j == 1){
+      all_encodings <- data.frame(number_encoding)
+   } else{
+      all_encodings <- cbind(all_encodings, number_encoding)
+   }
+}
+
+#relabeling the data frame for both the columns and rows
+rownames(all_encodings) <- paste(rep(1:1728, each = 4), rep(c('A','C','T','G'), 1728), sep = '')
+
+species_names <-  c("6WCR","4MHI","1JSD","3LZG","4LN3") 
+
+colnames(all_encodings) <- species_names  ##name of each of the species in order
+
+
+#Deletion the rows with repeated information (ex: all 0s or 1s)
+repeated <- (apply(all_encodings,1,sd) != 0)
+all_encodings2 <- all_encodings[repeated,]
+   
+#reformatted the data frame using transpose function   
+kmeans_df <- all_encodings2
+kmeans_df2 <- t(all_encodings2)
+
+#K means clustering
+
+# install.packages("factoextra")
+library(factoextra)
+
+#performed a k-mean clustering on the dataframe with two groups
+kmeans_obj <- kmeans(kmeans_df2, 2, iter.max = 10)
+
+#center of the group
+centers <- kmeans_obj$centers
+
+
+#average distance was calulcated between the two centers
+mean(abs(centers[1,] - centers[2,]))
+
+
+#created a distance dataframe 
+dist_df <- data.frame()
+
+#All protein was selected in pairs and getting the average distance (differ) between them
+for(i in 1:5){
+   for(j in 1:5){
+      col1 <- all_encodings[,i]
+      col2 <- all_encodings[,j]
+      avg_dist <- mean(abs(col1 - col2)) * 2
+
+      temp_row <- c(i,j,avg_dist)
+      dist_df <- rbind(dist_df, temp_row)
+   }
+}
+#columns name for the data frame
+colnames(dist_df) <- c('x', 'y', 'dist')
+
+
+#ggplot function to create a heatmap using the function geom_tile. Scale x and y disecrete is labelling of axis, ggtitle is title 
+g <- ggplot(data = dist_df) + geom_tile(aes(x = x, y = y, fill = dist)) + 
+   scale_fill_gradient(low = 'white',  high = 'red') + 
+   ggtitle('Heatmap of Average Genomic Distance') + 
+   scale_x_discrete(name = 'Protein',
+                    limits = c("6WCR","4MHI","1JSD","3LZG","4LN3") ) + 
+   scale_y_discrete(name = 'Protein',
+                    limits = c("6WCR","4MHI","1JSD","3LZG","4LN3") )
+g
+
+#visualization of the kmean clustering and how far they are 
+fviz_cluster(kmeans_obj, data = kmeans_df2)
+
+```
+\huge{Analyzes} 
+In the k-means cluster graph, two clusters were created to indicate the similarities between them. However, it is to be noted that cluster 2 with 3LZG and 4LN3 are not similar in anyways as supported by the homology image took with Pymol and the cluster graph. Additionally, 6WCR, 4MHI, and 1JSD are shown to be similar enough in their structures through Pymol and the cluster graph. The heat map also shown the average genomic distance between each proteins and 6WCR, 4MHI are close to each other follow by 1JSD. This suggests that 3/5 protein HA protein structures are similar enough to each other. It is to be noted that 4MHI and 1JSD came from the same country (China) in the span of two years. Similarities between these two strains (different subtypes) are bound to be similar due to geographical locations.
+
+In the phylogenetic cluster, Shanghai and Hong kong are shown to be similar in their evolution tree. California and Puerto Rico are shown to be similar, and leaving Guangdong as the last cluster. This can suggest that a convergent evolution might have occurred between these strains as regional similarities are not observed. Additionally, It is to be noted that the analysis show that Shanghai and Guangdong strains are shown to be extremely different in their evolutions, further suggesting of a convergent evolution and stochastic in its process. The multiple sequence alignment and homology modeling performed in this experiment demonstrated heavy indel mutations at the head domain with key structural differences observed through Pymol homology alignment. However, mutation patterns was not identified ranging from 1934 to 2013 due to the nature of viral mutations observed in the head domain. A stochastic model of viral mutations theory could possible explain the high frequency of mutations, but further experiment testing genetic drift, and sample are needed to further support such theory. 
